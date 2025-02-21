@@ -57,17 +57,18 @@ int vm_exception(VM *vm, int code, int severity, char *fmt, ...) {
             break;
         case ERR_MALLOC:
             printf("Memory allocation failed\n");
-            printf("Requested size: %d\n", vm->program[vm->pc - 1]);
             break;
         case ERR_FREE:
             printf("Memory free failed\n");
-            printf("Requested size: %d\n", vm->program[vm->pc - 1]);
             break;
         case ERR_DBZ:
             printf("Division by zero\n");
             break;
         case ERR_NULL_PTR:
             printf("Null pointer\n");
+            break;
+        case ERR_INVALID_ALU:
+            printf("Invalid ALU operation\n");
             break;
         default:
             printf("Unknown error\n");
@@ -383,6 +384,9 @@ void alu(VM *vm, ALU_OP op, uint16_t *dest, uint16_t src) {
         case ALU_DEC:
             *dest -= 1;
             modifyFlags(vm, *dest);
+            break;
+        default:
+            vm_exception(vm, ERR_INVALID_ALU, EXC_WARNING, 0);
             break;
     }
 }

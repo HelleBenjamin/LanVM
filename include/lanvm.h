@@ -65,6 +65,7 @@ int vm_exit(VM *vm, int8_t code);
 #define ERR_FREE -8
 #define ERR_DBZ -9
 #define ERR_NULL_PTR -10
+#define ERR_INVALID_ALU -11
 
 
 /* Error & warning codes
@@ -79,6 +80,7 @@ int vm_exit(VM *vm, int8_t code);
     -8 - Failed to free memory
     -9 - Division by zero
     -10 - Null pointer
+    -11 - Invalid ALU operation
 */
 
 /*  FLAGS
