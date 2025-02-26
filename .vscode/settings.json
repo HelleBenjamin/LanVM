@@ -6,6 +6,7 @@
         "lanvm.h": "c",
         "ctype.h": "c",
         "stdint.h": "c",
-        "stdbool.h": "c"
+        "stdbool.h": "c",
+        "initializer_list": "c"
     }
 }

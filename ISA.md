@@ -68,6 +68,16 @@ The DS byte is used to specify the destination and source registers/immediate fo
     0x2F    CHK INT
     0x30    PUSHF
     0x31    POPF
+    0x32    SETZ dest
+    0x33    SETNZ dest
+    0x34    SETL dest
+    0x35    SETLE dest
+    0x36    SETG dest
+    0x37    SETGE dest
+    0x38    SETB dest
+    0x39    SETBE dest
+    0x3A    SETA
+    0x3B    SETAE
     0xFB    LEA dest, [bp+offset]
     0xFD    LIV addr16
     0xFE    HLT
@@ -79,7 +89,7 @@ The DS byte is used to specify the destination and source registers/immediate fo
 ### 6. Hypervisor Calls
     0xd0    VMEXIT code
     0xd1    VMRESTART
-    0xd2    VMGETSTACKSIZE
+    0xd2    VMGETMEMSIZE
     0xd3    VMSTATE
     0xd5    VMMALLOC size16
     0xd6    VMFREE size16

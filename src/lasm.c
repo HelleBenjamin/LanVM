@@ -34,9 +34,11 @@ Instruction instructions[] = {
     {"JNC", JNC_addr16, 3}, {"JLE", JLE_addr16, 3}, {"JGE", JGE_addr16, 3}, {"JL", JL_addr16, 3},
     {"JG", JG_addr16, 3}, {"CALL", CALL_addr16, 3}, {"RET", RET, 1}, {"RETI", RETI, 1}, {"INT", INT, 1},
     {"EI", EI, 1}, {"DI", DI, 1}, {"CHK", CHK_INT, 1}, {"HLT", HALT, 1}, {"PUSHF", PUSHF, 1}, {"POPF", POPF, 1},
-    {"IN", IN_dest}, {"OUT", OUT_src},
-    {"VMEXIT", VMEXIT, 2}, {"VMRESTART", VMRESTART, 1}, {"VMGETSTACKSIZE", VMGETSTACKSIZE, 1}, {"VMSTATE", VMSTATE, 1}, {"VMMALLOC", VMMALLOC, 3}, {"VMFREE", VMFREE, 3},
-    {"LIV", LIV_addr16, 3}, {"LEA", LEA_dest_bpoff, 3}
+    {"IN", IN_dest, 2}, {"OUT", OUT_src, 2},
+    {"SETZ", SETZ_dest, 2}, {"SETNZ", SETNZ_dest, 2}, {"SETL", SETL_dest, 2}, {"SETLE", SETLE_dest, 2},
+    {"SETG", SETG_dest, 2}, {"SETGE", SETGE_dest, 2}, {"SETB", SETB_dest, 2}, {"SETBE", SETBE_dest, 2}, {"SETA", SETA_dest, 2}, {"SETAE", SETAE_dest, 2},
+    {"VMEXIT", VMEXIT, 2}, {"VMRESTART", VMRESTART, 1}, {"VMGETMEMSIZE", VMGETMEMSIZE, 1}, {"VMSTATE", VMSTATE, 1}, {"VMMALLOC", VMMALLOC, 3}, {"VMFREE", VMFREE, 3},
+    {"LIV", LIV_addr16, 3}, {"LEA", LEA_dest_bpoff, 4}
 };
 
 #define INSTRUCTION_COUNT (sizeof(instructions) / sizeof(Instruction))
@@ -151,10 +153,7 @@ void genInsOffs(FILE *output, uint8_t opcode, char *operand1, char *operand2, in
     }
     if (offset != 0 && pass == 2) {
         fprintf(output, "%02x", (offset & 0xFF));
-        current_address += 1;
-    } if (offset != 0 && pass == 1) {
-        current_address += 1;
-    }
+    } if (offset != 0) current_address += 1;
 }
 
 void assemble_line(char *line, FILE *output, int pass) {
@@ -212,10 +211,9 @@ void assemble_line(char *line, FILE *output, int pass) {
         }
     }
 
-    if (count == 2) { // push, pop, jmp, etc..
+    else if (count == 2) { // push, pop, jmp, etc..
         if (opcode >= JMP_addr16 && opcode <= CALL_addr16) { // Jump and call
             uint16_t addr = (pass == 2) ? resolve_label(operand1) : 0;
-            current_address += 1;
             if (pass == 2) fprintf(output, "%02x%02x%02x", opcode, addr & 0xFF, (addr >> 8) & 0xFF);
         } else if (opcode == PUSH_imm16 || opcode == PUSH_src) { // Push
             if (isdigit(operand1[0])) { // Immediate
@@ -237,11 +235,13 @@ void assemble_line(char *line, FILE *output, int pass) {
         } else if (opcode == LIV_addr16) {
             uint16_t addr = (pass == 2) ? resolve_label(operand1) : 0;
             if (pass == 2) fprintf(output, "%02x%02x%02x", opcode, addr & 0xFF, (addr >> 8) & 0xFF);
+        } else if (opcode >= SETZ_dest && opcode <= SETA_dest) {
+            genInsOffs(output, opcode, operand1, NULL, pass);
         }
 
     }
 
-    if (count == 1) { // ei, di, hlt..
+    else if (count == 1) { // ei, di, hlt..
         if (opcode >= RET && opcode <= POPF || opcode >= VMRESTART && opcode <= VMSTATE) {
             if (pass == 2) {
                 fprintf(output, "%02x", opcode);
@@ -276,7 +276,7 @@ int main(int argc, char **argv) {
     current_address = 0;
 
     printf("Pass 1 complete\n");
-    printf("Labels:\n");
+    printf("Labels (%d found):\n", label_count);
     for (int i = 0; i < label_count; i++) {
         if (label_count == 0) {
             printf("No labels found\n");
@@ -285,7 +285,7 @@ int main(int argc, char **argv) {
         printf("%s: 0x%04x\n", labels[i].name, labels[i].address);
     }
 
-    // Second pass: Assemble
+    // Second pass: Code generation
     while (fgets(line, sizeof(line), input)) assemble_line(line, output, 2);
 
     fclose(input);

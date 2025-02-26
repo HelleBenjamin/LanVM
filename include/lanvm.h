@@ -20,21 +20,22 @@
 #ifndef LANVM_H
 #define LANVM_H
 
-#define VM_VERSION 100
-#define VM_VERSION_STR "1.0.0"
+#define VM_VERSION 101
+#define VM_VERSION_STR "1.0.1"
 
 #include <stdint.h>
 #include <stdbool.h>
 
-#define DEFAULT_STACK_SIZE 1024 // Sets the maximum stack size. Maximum stack size is 0xFF due to 8-bit registers
+#define DEFAULT_MEMORY_SIZE 1024 // Sets the maximum memory size. Maximum memory size is 0xFFFF due to 16-bit registers
 #define DEFAULT_PROGRAM_SIZE 2048
 
 extern bool DEBUG; // Debug mode
 
 typedef struct{
-    uint8_t *stack; // RAM
-    uint16_t stackSize;
+    uint8_t *memory; // RAM
+    uint16_t memSize;
     uint8_t *program; // program
+    uint16_t progSize;
     uint16_t pc;
     uint16_t iv; // interrupt vector
     uint16_t r[5]; // Accumulator, Data, Base, Destination, Source
@@ -171,6 +172,16 @@ typedef enum {
     CHK_INT,            // chk int ; check if executing isr, if executing zf = 1
     PUSHF,              // pushf
     POPF,               // popf
+    SETZ_dest,          // setz dest
+    SETNZ_dest,         // setnz dest
+    SETL_dest,          // setl dest
+    SETLE_dest,         // setle dest
+    SETG_dest,          // setg dest
+    SETGE_dest,         // setge dest
+    SETB_dest,          // setb dest
+    SETBE_dest,         // setbe dest
+    SETA_dest,          // seta dest
+    SETAE_dest,         // setae dest
 
     // I/O
     IN_dest = 0xf0,     // in dest
@@ -179,7 +190,7 @@ typedef enum {
     // Hypervisor Calls
     VMEXIT = 0xd0,      // vmexit code
     VMRESTART,          // vmrestart
-    VMGETSTACKSIZE,     // vmgetstacksize
+    VMGETMEMSIZE,       // vmgetmemsize
     VMSTATE,            // vmstate
     VMMALLOC = 0xd5,    // vmmalloc size
     VMFREE = 0xd6,      // vmfree size

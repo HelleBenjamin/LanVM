@@ -22,8 +22,8 @@
 
 #define MAX_LABELS 256
 
-#define LASM_VERSION 100
-#define LASM_VERSION_STR "1.0.0"
+#define LASM_VERSION 101
+#define LASM_VERSION_STR "1.0.1"
 
 // Instruction table
 typedef struct {

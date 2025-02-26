@@ -1,5 +1,5 @@
 start:
-    vmgetstacksize
+    vmgetmemsize
     ld bp, r0
     push 72
     push 101

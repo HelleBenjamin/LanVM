@@ -38,10 +38,10 @@ int vm_exception(VM *vm, int code, int severity, char *fmt, ...) {
             printf("BP: %d\n", vm->bp);
             printf("Offset: %d\n", vm->program[vm->pc - 1]);
             printf("BP+Offset: %d\n", vm->bp+vm->program[vm->pc - 1]);
-            printf("Valid address range: 0x0000 - 0x%04x\n", vm->stackSize);
+            printf("Valid address range: 0x0000 - 0x%04x\n", vm->memSize);
             break;
         case ERR_OOB_REG:
-            printf("Register indirect address out of bounds\nValid address range: 0x0000 - 0x%04x\n", vm->stackSize);
+            printf("Register indirect address out of bounds\nValid address range: 0x0000 - 0x%04x\n", vm->memSize);
             break;
         case ERR_STACK_OVERFLOW:
             printf("Stack overflow\n");
@@ -87,12 +87,12 @@ int vm_exception(VM *vm, int code, int severity, char *fmt, ...) {
 }
 
 uint8_t fByte(VM *vm) {
-    return vm->program[vm->pc++];
+    return vm->memory[vm->pc++];
 }
 
 uint16_t fWord(VM *vm) {
-    uint16_t temp = vm->program[vm->pc++];
-    temp |= vm->program[vm->pc++] << 8;
+    uint16_t temp = vm->memory[vm->pc++];
+    temp |= vm->memory[vm->pc++] << 8;
     return temp;
 }
 
@@ -101,37 +101,37 @@ void push8(VM *vm, uint8_t value) {
         vm_exception(vm, ERR_STACK_OVERFLOW, EXC_SEVERE, 0);
         return;
     }
-    vm->stack[--vm->sp] = value;
+    vm->memory[--vm->sp] = value;
 }
 
 uint8_t pop8(VM *vm) {
-    if (vm->sp > vm->stackSize) {
+    if (vm->sp > vm->memSize) {
         return vm_exception(vm, ERR_STACK_UNDERFLOW, EXC_SEVERE, 0);
     }
-    return vm->stack[vm->sp++];
+    return vm->memory[vm->sp++];
 }
 
 void push16(VM *vm, uint16_t value) {
-    if (vm->sp > vm->stackSize) {
+    if (vm->sp > vm->memSize) {
         vm_exception(vm, ERR_STACK_OVERFLOW, EXC_SEVERE, 0);
         return;
     }
-    vm->stack[--vm->sp] = value & 0xff;
-    vm->stack[--vm->sp] = value >> 8;
+    vm->memory[--vm->sp] = value & 0xff;
+    vm->memory[--vm->sp] = value >> 8;
 }
 
 uint16_t pop16(VM *vm) {
-    if (vm->sp > vm->stackSize) {
+    if (vm->sp > vm->memSize) {
         return vm_exception(vm, ERR_STACK_UNDERFLOW, EXC_SEVERE, 0);
     }
-    uint16_t temp = vm->stack[vm->sp++] << 8;
-    temp |= vm->stack[vm->sp++];
+    uint16_t temp = vm->memory[vm->sp++] << 8;
+    temp |= vm->memory[vm->sp++];
     return temp;
 }
 
 void modifyFlags(VM *vm, uint16_t result) {
     vm->flags[ZERO_FLAG] = result == 0 ? 1 : 0;
-    vm->flags[SIGN_FLAG] = result < 0 ? 1 : 0;
+    vm->flags[SIGN_FLAG] = (result & 0x8000) < 0 ? 1 : 0;
     vm->flags[OVERFLOW_FLAG] = result < -32768 || result > 32767 ? 1 : 0;
     vm->flags[CARRY_FLAG] = (result & 0x10000) ? 1 : 0;
 }
@@ -145,17 +145,17 @@ DSbyte decodeDS(uint8_t DSb) {
 
 uint8_t* RegOffset(VM *vm, bool reg, int8_t offset) {
     if (reg) { // SP
-        if (vm->sp + offset > vm->stackSize || vm->sp + offset < 0) { // Prevent accessing memory out of bounds
+        if (vm->sp + offset > vm->memSize || vm->sp + offset < 0) { // Prevent accessing memory out of bounds
             vm_exception(vm, ERR_OOB_OFF, EXC_WARNING, 0);
             return NULL;
         }
-        return &vm->stack[vm->sp + offset];
+        return &vm->memory[vm->sp + offset];
     } else { // BP
-        if (vm->bp + offset > vm->stackSize || vm->bp + offset < 0) { // Prevent accessing memory out of bounds
+        if (vm->bp + offset > vm->memSize || vm->bp + offset < 0) { // Prevent accessing memory out of bounds
             vm_exception(vm, ERR_OOB_OFF, EXC_WARNING, 0);
             return NULL;
         }
-        return &vm->stack[vm->bp + offset];
+        return &vm->memory[vm->bp + offset];
     }
 }
 
@@ -172,12 +172,11 @@ void* GetDestination(VM *vm, uint8_t DSb) {
         }
         else if (DS.destReg == 9) addr = vm->r[3]; // [r3]
         else if (DS.destReg == 10) addr = vm->r[4]; // [r4]
-        if (addr < 0 || addr > vm->stackSize) { // Prevent accessing memory out of bounds
+        if (addr < 0 || addr > vm->memSize) { // Prevent accessing memory out of bounds
             vm_exception(vm, ERR_OOB_REG, EXC_WARNING, "Indirect address: 0x%04x\n", addr);
             return NULL;
         }
-        printf("ADDR: %d\n", addr);
-        return &vm->stack[addr];
+        return &vm->memory[addr];
     } else { // Register destination
         return (uint16_t*)dest[DS.destReg];
     }
@@ -198,11 +197,11 @@ uint16_t GetSource(VM *vm, uint8_t DSb) {
         }
         else if (DS.srcReg == 9) addr = vm->r[3]; // [r3]
         else if (DS.srcReg == 10) addr = vm->r[4]; // [r4]
-        if (addr < 0 || addr > vm->stackSize) { // Prevent accessing memory out of bounds
+        if (addr < 0 || addr > vm->memSize) { // Prevent accessing memory out of bounds
             vm_exception(vm, ERR_OOB_REG, EXC_WARNING, "Indirect address: 0x%04x\n", addr);
             return 0;
         }
-        return vm->stack[addr];
+        return vm->memory[addr];
     } else { // Register source
         return *src[DS.srcReg];
     }
@@ -219,17 +218,16 @@ uint16_t* GetReg(VM *vm, uint8_t reg) {
 int vm_init(VM *vm, uint8_t *program) {
     for (int i = 0; i < 8; i++) vm->flags[i] = 0;
     for (int i = 0; i < 5; i++) vm->r[i] = 0;
-    vm->sp = DEFAULT_STACK_SIZE; // Top of the stack
+    vm->sp = DEFAULT_MEMORY_SIZE; // Top of the stack
     vm->bp = 0;
     vm->pc = 0;
     vm->iv = 0;
-    vm->stackSize = DEFAULT_STACK_SIZE;
-    vm->stack = calloc(vm->stackSize, sizeof(uint8_t));
-    vm->program = calloc(DEFAULT_PROGRAM_SIZE, sizeof(uint8_t));
-    if (!vm->stack || !vm->program) {
+    vm->memSize = DEFAULT_MEMORY_SIZE;
+    vm->memory = calloc(vm->memSize, sizeof(uint8_t));
+    vm->program = calloc(vm->progSize, sizeof(uint8_t));
+    if (!vm->memory || !vm->program) {
         vm_exit(vm, ERR_MALLOC);
     }
-    vm_load(vm, program);
     return 0;
 }
 
@@ -237,15 +235,15 @@ int vm_init(VM *vm, uint8_t *program) {
 int vm_restart(VM *vm) {
     for (int i = 0; i < 8; i++) vm->flags[i] = 0;
     for (int i = 0; i < 5; i++) vm->r[i] = 0;
-    vm->sp = DEFAULT_STACK_SIZE; // Top of the stack
+    vm->sp = DEFAULT_MEMORY_SIZE; // Top of the stack
     vm->bp = 0;
     vm->pc = 0;
     vm->iv = 0;
-    if (vm->stackSize != DEFAULT_STACK_SIZE) { // Set stack size back to default
-        free(vm->stack);
-        vm->stackSize = DEFAULT_STACK_SIZE;
-        vm->stack = calloc(vm->stackSize, sizeof(uint8_t));
-        if (!vm->stack) {
+    if (vm->memSize != DEFAULT_MEMORY_SIZE) { // Set stack size back to default
+        free(vm->memory);
+        vm->memSize = DEFAULT_MEMORY_SIZE;
+        vm->memory = calloc(vm->memSize, sizeof(uint8_t));
+        if (!vm->memory) {
             vm_exit(vm, ERR_MALLOC);
             return -5;
         }
@@ -254,60 +252,59 @@ int vm_restart(VM *vm) {
 }
 
 int vm_exit(VM *vm, int8_t code) {
-    free(vm->stack);
+    free(vm->memory);
     free(vm->program);
     printf("VM exited with code %d\n", code);
     exit(code);
 }
 
 int vm_load(VM *vm, uint8_t *program) {
-    if (program == NULL) {
+    if (!program) {
         return -1;
     }
-    size_t size = sizeof(uint8_t) * DEFAULT_PROGRAM_SIZE;
-    memcpy(vm->program, program, size);
+    memcpy(vm->memory, program, vm->progSize);
     return 0;
 }
 
-int vm_malloc(VM *vm, uint16_t size) { // Allocate stack memory, current stack size += size
+int vm_malloc(VM *vm, uint16_t size) { // Allocate memory, current memory size += size
     
-    if ((vm->stackSize + size) > 0xFFFF) {
+    if ((vm->memSize + size) > 0xFFFF) {
         vm_exception(vm, ERR_MALLOC, EXC_WARNING, "Stack allocation exceeds maximum size\n");
         return 1;
     }
 
-    uint16_t new_stack_size = vm->stackSize + size;
-    uint8_t *new_stack = (uint8_t *)realloc(vm->stack, new_stack_size);
+    uint16_t new_mem_size = vm->memSize + size;
+    uint8_t *new_memory = (uint8_t *)realloc(vm->memory, new_mem_size);
 
-    if (!new_stack) {
+    if (!new_memory) {
         vm_exception(vm, ERR_MALLOC, EXC_SEVERE, 0);
         return 1;
     }
-    vm->stack = new_stack;
-    vm->stackSize = new_stack_size;
+    vm->memory = new_memory;
+    vm->memSize = new_mem_size;
     return 0;
 }
 
-int vm_free(VM *vm, uint16_t size) { // Free stack memory, current stack size -= size
+int vm_free(VM *vm, uint16_t size) { // Free memory, current memory size -= size
 
-    if (size >= vm->stackSize) {
+    if (size >= vm->memSize) {
         vm_exception(vm, ERR_FREE, EXC_WARNING, "Cannot free more memory than allocated\n");
         return 1;
     }
 
-    uint16_t new_stack_size = vm->stackSize - size;
-    uint8_t *new_stack = (uint8_t *)realloc(vm->stack, new_stack_size);
+    uint16_t new_mem_size = vm->memSize - size;
+    uint8_t *new_memory = (uint8_t *)realloc(vm->memory, new_mem_size);
 
-    if (!new_stack) {
+    if (!new_memory) {
         vm_exception(vm, ERR_MALLOC, EXC_SEVERE, 0);
         return 1;
     }
 
-    vm->stack = new_stack;
-    vm->stackSize = new_stack_size;
+    vm->memory = new_memory;
+    vm->memSize = new_mem_size;
 
-    if (vm->sp > vm->stackSize) { // Reset stack pointer if out of bounds
-        vm->sp = vm->stackSize;
+    if (vm->sp > vm->memSize) { // Reset stack pointer if out of bounds
+        vm->sp = vm->memSize;
     }
 
     return 0;
@@ -320,8 +317,8 @@ int hypervisorCall(VM *vm, uint8_t operation, uint16_t operand) {
         case 0x01: // VMRESTART
             vm_restart(vm);
             return 0;
-        case 0x02: // VMGETSTACKSIZE
-            vm->r[0] = vm->stackSize; // Current stack size in r0
+        case 0x02: // VMGETMEMSIZE
+            vm->r[0] = vm->memSize; // Current stack size in r0
             return 0;
         case 0x05: // VMMALLOC
             return vm_malloc(vm, operand);
@@ -388,6 +385,51 @@ void alu(VM *vm, ALU_OP op, uint16_t *dest, uint16_t src) {
         default:
             vm_exception(vm, ERR_INVALID_ALU, EXC_WARNING, 0);
             break;
+    }
+}
+
+void handleSET(VM *vm, uint8_t op, uint8_t DSb) {
+    DSbyte DS = decodeDS(DSb);
+    uint16_t* dest = GetDestination(vm, DSb);
+    if (!dest) {
+        vm_exception(vm, ERR_NULL_PTR, EXC_WARNING, "Null ptr passed to SET\n");
+        return;
+    }
+    switch (op) {
+        case 0x32: // SETZ
+            *dest = (vm->flags[ZERO_FLAG]) ? 1 : 0;
+            break;
+        case 0x33: // SETNZ
+            *dest = (!vm->flags[ZERO_FLAG]) ? 1 : 0;
+            break;
+        case 0x34: // SETL
+            *dest = (vm->flags[SIGN_FLAG] != vm->flags[OVERFLOW_FLAG]) ? 1 : 0;
+            break;
+        case 0x35: // SETLE
+            *dest = (vm->flags[ZERO_FLAG] || vm->flags[SIGN_FLAG] != vm->flags[OVERFLOW_FLAG]) ? 1 : 0;
+            break;
+        case 0x36: // SETG
+            *dest = (vm->flags[ZERO_FLAG] && vm->flags[SIGN_FLAG] == vm->flags[OVERFLOW_FLAG]) ? 1 : 0;
+            break;
+        case 0x37: // SETGE
+            *dest = (vm->flags[SIGN_FLAG] == vm->flags[OVERFLOW_FLAG]) ? 1 : 0;
+            break;
+        case 0x38: // SETB
+            *dest = (vm->flags[CARRY_FLAG]) ? 1 : 0;
+            break;
+        case 0x39: // SETBE
+            *dest = (vm->flags[CARRY_FLAG] || vm->flags[ZERO_FLAG]) ? 1 : 0;
+            break;
+        case 0x3a: // SETA
+            *dest = (!vm->flags[CARRY_FLAG] && !vm->flags[ZERO_FLAG]) ? 1 : 0;
+            break;
+        case 0x3b: // SETAE
+            *dest = (!vm->flags[CARRY_FLAG]) ? 1 : 0;
+            break;
+        default:
+            vm_exception(vm, ERR_INVALID_ALU, EXC_WARNING, "Invalid SET opcode\n");
+            break;
+
     }
 }
 
@@ -576,6 +618,24 @@ int execute(VM *vm) {
             }
             break;
 
+        case SETZ_dest:
+        case SETNZ_dest:
+        case SETL_dest:
+        case SETLE_dest:
+        case SETG_dest:
+        case SETGE_dest:
+        case SETB_dest:
+        case SETBE_dest:
+        case SETA_dest:
+        case SETAE_dest:
+            dest = GetDestination(vm, DSb);
+            if (!dest) {
+                vm_exception(vm, ERR_NULL_PTR, EXC_WARNING, "Null ptr passed to SET\n");
+                break;
+            }
+            *dest = 0;
+            break;
+
         // I/O
         case IN_dest:
             DSb = fByte(vm);
@@ -598,7 +658,7 @@ int execute(VM *vm) {
         case VMRESTART:
             hypervisorCall(vm, 0x01, 0);
             break;
-        case VMGETSTACKSIZE:
+        case VMGETMEMSIZE:
             hypervisorCall(vm, 0x02, 0);
             break;
         case VMSTATE: // Print current state, use for debugging
@@ -645,13 +705,15 @@ void printState(VM *vm) {
     );
 }
 
-void loadProgram(FILE *file, uint8_t *program) {
+void loadProgram(VM *vm,FILE *file, uint8_t *program) {
     uint8_t line[3];
     int i = 0;
     while (fgets(line, sizeof(line), file)) {
         if (line[0] == '\n') break;
         program[i++] = (uint8_t)strtol(line, NULL, 16);
     }
+    vm->progSize = i;
+    memcpy(vm->memory, program, vm->progSize);
     /*for (int j = 0; j < i; j++) { // Debug
         printf("%02x ", program[j]);
     }
@@ -679,15 +741,14 @@ int main(int argc, char **argv) {
         fclose(file);
         return 1;
     }
-    loadProgram(file, program);
-    fclose(file);
-
     vm_init(&vm, program);
+    loadProgram(&vm, file, program);
+    fclose(file);
 
     free(program);
 
     while (vm.pc < DEFAULT_PROGRAM_SIZE && !vm.flags[HALT_FLAG]) {
-        //printf("Instruction: 0x%02x PC: 0x%04x SP: 0x%04x R0: 0x%04x\n", vm.program[vm.pc], vm.pc, vm.sp, vm.r[0]); // Debug
+        //printf("Instruction: 0x%02x PC: 0x%04x SP: 0x%04x R0: 0x%04x\n", vm.memory[vm.pc], vm.pc, vm.sp, vm.r[0]); // Debug
         execute(&vm);
     }
 
