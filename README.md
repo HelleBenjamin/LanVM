@@ -18,6 +18,11 @@ The VM has a maximum of 64KB of stack memory(RAM) and program memory. The memory
 ## Instruction Set
 The LanCode instruction set consists of different types of instructions, for example arithmetic operations, memory operations, control flow instructions, etc. The full instruction set is defined in the [ISA.md](ISA.md) file.
 
+## Graphical Instructions
+LanVM has a simple OpenGL 2.1 graphical API. The API allows you to draw lines, rectangles, etc. Currently it's in early stage with no special features.
+
+The API is defined in the [graphics.md](graphics.md) file.
+
 ## Assembler
 LASM is a simple and small assembler for the LanCode language. Currently it supports labels and comments in the assembly code.
 
@@ -27,20 +32,44 @@ The VM is generally faster than interpreted languages such as Python, with a typ
 ## Building
 Prerequisites:
 - C compiler, such as gcc
-- Make
+- Make, CMake
 - Linux
+- Windows (MingW32 recommended)
 
-Steps:
+New steps with CMake:
+1. Clone the repository
+2. Run `mkdir build && cd build`
+3. Run `cmake ..`
+4. Run `make` or in Windows `mingw32-make`
+
+Old Steps:
 1. Clone the repository
 2. Run `make` to build the VM. You can use `make vm` and `make asm` to build the VM and LASM respectively.
 
 ## Usage
 
 ### VM
-Run `./bin/lanvm <program_file>` to run a program.
+Run `./build/lanvm <program_file>` to run a program.
 
 ### LASM
-Run `./bin/lasm <input_file> <output_file>` to assemble a program.
+Run `./build/lasm <input_file> <output_file>` to assemble a program.
+
+## Versioning
+
+LanCode and LanVM follow the semantic versioning scheme:
+
+The format is `MAJOR.MINOR.PATCH`, where:
+- `MAJOR` is the major version, which is incremented when new breaking changes are introduced.
+- `MINOR` is the minor version, which is incremented when new non-breaking features are added.
+- `PATCH` is the patch version, which is incremented when bug fixes or non-breaking changes are introduced.
+
+The version number can include additional information, such as development or special versions, which are denoted by characters at the end of the version number.
+
+For example, version 1.1.0 introduced the graphical instructions.
+
+## Third-Party Libraries
+- [GLFW](https://www.glfw.org/) - OpenGL framework
+- [GLAD](https://glad.dav1d.de/) - OpenGL loader
 
 ## Contributing
 Pull requests are welcome. If you have any suggestions or find any bugs, please open an issue.

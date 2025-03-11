@@ -20,16 +20,26 @@
 #ifndef LANVM_H
 #define LANVM_H
 
-#define VM_VERSION 101
-#define VM_VERSION_STR "1.0.1"
+#define VM_VERSION 110
+#define VM_VERSION_STR "1.1.0"
 
-#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <stdbool.h>
+#include <stdint.h>
+#include <stdarg.h>
+#include <math.h>
+
+//#include "glad/glad.h"
+#include "GL/freeglut.h"
+#include "GLFW/glfw3.h"
 
 #define DEFAULT_MEMORY_SIZE 1024 // Sets the maximum memory size. Maximum memory size is 0xFFFF due to 16-bit registers
 #define DEFAULT_PROGRAM_SIZE 2048
 
 extern bool DEBUG; // Debug mode
+extern bool GRAPHICS; // Graphics mode
 
 typedef struct{
     uint8_t *memory; // RAM
@@ -41,7 +51,22 @@ typedef struct{
     uint16_t r[5]; // Accumulator, Data, Base, Destination, Source
     bool flags[8];
     uint16_t sp, bp;
+
+    // Graphics
+    int screenWidth, screenHeight;
+    uint32_t currentColor;
+    GLFWwindow *window;
+    uint32_t* framebuffer;
 } VM;
+
+int langlInit(VM *vm);
+void langlSetColor(VM *vm, uint8_t color);
+void langlPlot(VM *vm, int x, int y);
+void langlLine(VM *vm, int x1, int y1, int x2, int y2);
+void langlRect(VM *vm, int x, int y, int w, int h);
+void langlRender(VM *vm);
+void langlClear(VM *vm);
+void langlExit(VM *vm);
 
 int vm_exception(VM *vm, int code, int severity, char *fmt, ...);
 
@@ -67,6 +92,7 @@ int vm_exit(VM *vm, int8_t code);
 #define ERR_DBZ -9
 #define ERR_NULL_PTR -10
 #define ERR_INVALID_ALU -11
+#define ERR_GRAPHICS -12
 
 
 /* Error & warning codes
@@ -82,6 +108,7 @@ int vm_exit(VM *vm, int8_t code);
     -9 - Division by zero
     -10 - Null pointer
     -11 - Invalid ALU operation
+    -12 - Graphics error
 */
 
 /*  FLAGS
@@ -110,6 +137,7 @@ typedef struct {
 
 void* GetDestination(VM *vm, uint8_t DSb);
 uint16_t GetSource(VM *vm, uint8_t DSb);
+DSbyte decodeDS(uint8_t DSb);
 
 #define CARRY_FLAG 0x00
 #define ZERO_FLAG 0x01
@@ -185,7 +213,9 @@ typedef enum {
 
     // I/O
     IN_dest = 0xf0,     // in dest
-    OUT_src = 0xf1,      // out src
+    OUT_src = 0xf1,     // out src
+    GETS_r4,            // gets r3
+    PRINTS_r3,          // prints r3
 
     // Hypervisor Calls
     VMEXIT = 0xd0,      // vmexit code
@@ -194,6 +224,14 @@ typedef enum {
     VMSTATE,            // vmstate
     VMMALLOC = 0xd5,    // vmmalloc size
     VMFREE = 0xd6,      // vmfree size
+
+    // Graphics
+    GLINIT = 0xc0,      // glinit
+    GLCLEAR,            // glclear
+    GLSETCOLOR,         // glsetcolor
+    GLPLOT,             // glplot
+    GLRECT,             // glrect
+    GLLINE,             // glline
 
     LEA_dest_bpoff = 0xfb,  // lea dest, boff
     LIV_addr16 = 0xfd,  // liv, imm16
@@ -218,10 +256,14 @@ typedef enum {
 void printState(VM *vm);
 int execute(VM *vm);
 void alu(VM *vm, ALU_OP op, uint16_t *dest, uint16_t src);
+void handleSET(VM *vm, uint8_t op, uint8_t DSb);
 
 void push8(VM *vm, uint8_t value);
 void push16(VM *vm, uint16_t value);
 uint8_t pop8(VM *vm);
 uint16_t pop16(VM *vm);
+
+uint8_t fByte(VM *vm);
+uint16_t fWord(VM *vm);
 
 #endif

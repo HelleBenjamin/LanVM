@@ -1,6 +1,7 @@
 CC = gcc
 
 SRC = src
+VM_SRC = $(SRC)/lanvm
 # Note: if building system binaries use /bin
 BIN = bin
 

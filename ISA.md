@@ -85,6 +85,8 @@ The DS byte is used to specify the destination and source registers/immediate fo
 ### 5. I/O Instructions
     0xF0    IN dest
     0xF1    OUT src
+    0xF2    GETS [r4]
+    0xF3    PRINTS [r3]
 
 ### 6. Hypervisor Calls
     0xd0    VMEXIT code
@@ -93,3 +95,11 @@ The DS byte is used to specify the destination and source registers/immediate fo
     0xd3    VMSTATE
     0xd5    VMMALLOC size16
     0xd6    VMFREE size16
+
+### 7. Graphical Instructions
+    0xC0    GLINIT
+    0xC1    GLCLEAR
+    0xC2    GLSETCOLOR
+    0xC3    GLPLOT
+    0xC4    GLRECT
+    0xC5    GLLINE

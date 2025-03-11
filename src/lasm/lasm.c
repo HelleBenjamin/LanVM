@@ -34,10 +34,11 @@ Instruction instructions[] = {
     {"JNC", JNC_addr16, 3}, {"JLE", JLE_addr16, 3}, {"JGE", JGE_addr16, 3}, {"JL", JL_addr16, 3},
     {"JG", JG_addr16, 3}, {"CALL", CALL_addr16, 3}, {"RET", RET, 1}, {"RETI", RETI, 1}, {"INT", INT, 1},
     {"EI", EI, 1}, {"DI", DI, 1}, {"CHK", CHK_INT, 1}, {"HLT", HALT, 1}, {"PUSHF", PUSHF, 1}, {"POPF", POPF, 1},
-    {"IN", IN_dest, 2}, {"OUT", OUT_src, 2},
+    {"IN", IN_dest, 2}, {"OUT", OUT_src, 2}, {"GETS", GETS_r4, 1}, {"PRINTS", PRINTS_r3, 1},
     {"SETZ", SETZ_dest, 2}, {"SETNZ", SETNZ_dest, 2}, {"SETL", SETL_dest, 2}, {"SETLE", SETLE_dest, 2},
     {"SETG", SETG_dest, 2}, {"SETGE", SETGE_dest, 2}, {"SETB", SETB_dest, 2}, {"SETBE", SETBE_dest, 2}, {"SETA", SETA_dest, 2}, {"SETAE", SETAE_dest, 2},
     {"VMEXIT", VMEXIT, 2}, {"VMRESTART", VMRESTART, 1}, {"VMGETMEMSIZE", VMGETMEMSIZE, 1}, {"VMSTATE", VMSTATE, 1}, {"VMMALLOC", VMMALLOC, 3}, {"VMFREE", VMFREE, 3},
+    {"GLINIT", GLINIT, 1}, {"GLCLEAR", GLCLEAR, 1}, {"GLSETCOLOR", GLSETCOLOR, 1}, {"GLPLOT", GLPLOT, 1}, {"GLRECT", GLRECT, 1}, {"GLLINE", GLLINE, 1},
     {"LIV", LIV_addr16, 3}, {"LEA", LEA_dest_bpoff, 4}
 };
 
@@ -242,7 +243,7 @@ void assemble_line(char *line, FILE *output, int pass) {
     }
 
     else if (count == 1) { // ei, di, hlt..
-        if (opcode >= RET && opcode <= POPF || opcode >= VMRESTART && opcode <= VMSTATE) {
+        if (opcode >= RET && opcode <= POPF || opcode >= VMRESTART && opcode <= VMSTATE || opcode >= GETS_r4 && opcode <= PRINTS_r3 || opcode >= GLINIT && opcode <= GLLINE) {
             if (pass == 2) {
                 fprintf(output, "%02x", opcode);
             }
