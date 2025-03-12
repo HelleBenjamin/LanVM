@@ -20,8 +20,8 @@
 #ifndef LANVM_H
 #define LANVM_H
 
-#define VM_VERSION 110
-#define VM_VERSION_STR "1.1.0"
+#define VM_VERSION 111
+#define VM_VERSION_STR "1.1.1"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -31,8 +31,6 @@
 #include <stdarg.h>
 #include <math.h>
 
-//#include "glad/glad.h"
-#include "GL/freeglut.h"
 #include "GLFW/glfw3.h"
 
 #define DEFAULT_MEMORY_SIZE 1024 // Sets the maximum memory size. Maximum memory size is 0xFFFF due to 16-bit registers
